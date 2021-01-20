@@ -143,7 +143,7 @@ if ($Wait -and ($totalRequired -gt 0)){
     
     # Authenticating to the API
     try {
-        $APIKey = $OctopusParameters["API_KEY"]
+        $APIKey = $OctopusParameters["OCTOPUS_APIKEY"]
         $header = @{ "X-Octopus-ApiKey" = $APIKey }
     }
     catch {
