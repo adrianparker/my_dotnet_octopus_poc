@@ -14,7 +14,7 @@ $missingParams = @()
 
 if ($octoApiKey -like ""){
     try {
-        $octoApiKey = $OctopusParameters["API_KEY"]
+        $octoApiKey = $OctopusParameters["OCTOPUS_APIKEY"]
         Write-Output "    Found value for octoApiKey from Octopus variables." 
     }
     catch {
