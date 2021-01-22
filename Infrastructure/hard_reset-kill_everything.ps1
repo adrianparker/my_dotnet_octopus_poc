@@ -83,5 +83,5 @@ Remove-SECSecret -SecretId OCTOPUS_APIKEY -DeleteWithNoRecovery:$true -Force | O
 Write-Output "Deleting AWS Secret: OCTOPUS_THUMBPRINT"
 Remove-SECSecret -SecretId OCTOPUS_THUMBPRINT -DeleteWithNoRecovery:$true -Force | Out-Null
 Write-Output "*"
-
+Write-Output " "
 Write-Output "RandomQuotes is Dead."
