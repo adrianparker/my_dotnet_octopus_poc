@@ -22,9 +22,9 @@ else {
     }
 }
 $holdingFile = "$holdingFilePath/holdingfile.txt"
-$warningTime = 90 # seconds
+$warningTime = 120 # seconds
 $warningGiven = $false
-$timeoutTime = 120 # seconds
+$timeoutTime = 150 # seconds
 if (test-path $holdingFile){
     try {
         $holdingFileText = Get-Content -Path $holdingFile -Raw
@@ -164,6 +164,15 @@ else {
     Write-Output "      AWS.Tools.SimpleSystemsManagement is not installed."
     Write-Output "        Installing AWS.Tools.SimpleSystemsManagement..."
     Install-Module AWS.Tools.SimpleSystemsManagement -Force
+}
+
+if ($Installedmodules.name -contains "AWS.Tools.SecretsManager"){
+    Write-Output "      Module AWS.Tools.SecretsManager is already installed "
+}
+else {
+    Write-Output "      AWS.Tools.SecretsManager is not installed."
+    Write-Output "        Installing AWS.Tools.SecretsManager..."
+    Install-Module AWS.Tools.SecretsManager -Force
 }
 
 Write-Output "      AWS Tools is set up and ready to use."
