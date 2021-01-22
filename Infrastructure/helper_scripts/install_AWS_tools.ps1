@@ -78,7 +78,14 @@ if (test-path $holdingFile){
 
         # If another runbook has been hogging for way too long
         if ($time -ge $timeoutTime){
-            Write-Error "Timed out at $time seconds."
+            Write-Output "Timed out at $time seconds."
+            Write-Warning "Other Runbook has taken too long. Force delting the holding file."
+            try {
+                Remove-Item $holdingFile
+            }
+            catch {
+                Write-Error "Failed to delete the holding file"
+            }
         }
     }
 }
