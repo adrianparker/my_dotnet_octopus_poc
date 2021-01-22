@@ -76,3 +76,9 @@ Write-Output "Executing .\helper_scripts\delete_randomquotes_iam_role.ps1..."
 Write-Output "  (No parameters)"
 & $PSScriptRoot\helper_scripts\delete_randomquotes_iam_role.ps1 
 Write-Output "*"
+
+# Deleting AWS Secrets
+Write-Output "Executing .\helper_scripts\delete_randomquotes_iam_role.ps1..."
+Remove-SECSecret -SecretId OCTOPUS_APIKEY -DeleteWithNoRecovery:$true -Force | Out-Null
+Remove-SECSecret -SecretId OCTOPUS_THUMBPRINT -DeleteWithNoRecovery:$true -Force | Out-Null
+Write-Output "*"
