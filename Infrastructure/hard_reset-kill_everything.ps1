@@ -77,6 +77,15 @@ Write-Output "  (No parameters)"
 & $PSScriptRoot\helper_scripts\delete_randomquotes_iam_role.ps1 
 Write-Output "*"
 
+# Deleting AWS Secrets
+Write-Output "Deleting AWS Secret: OCTOPUS_APIKEY"
+Remove-SECSecret -SecretId OCTOPUS_APIKEY -DeleteWithNoRecovery:$true -Force | Out-Null
+Write-Output "Deleting AWS Secret: OCTOPUS_THUMBPRINT"
+Remove-SECSecret -SecretId OCTOPUS_THUMBPRINT -DeleteWithNoRecovery:$true -Force | Out-Null
+Write-Output "*"
+Write-Output " "
+Write-Output "RandomQuotes is Dead."
+
 # Verifying that everything has been deleted
 Write-Output "Executing .\helper_scripts\verify_hard_delete.ps1..."
 Write-Output "  (No parameters)"

@@ -18,19 +18,25 @@ function Test-SecurityGroup {
     }
 }
 
+$attempt = 1
+$totalAttempts = 20
+$waitTime = 5
+
 # Deleting security group
-$secGroupExistsBefore = Test-SecurityGroup $securityGroupName
-if ($secGroupExistsBefore) {
-    Write-Output "    Security group exists in EC2."
-    Write-Output "    Deleting security group: $securityGroupName"
-    $attempt = 1
-    $totalAttempts = 20
-    $waitTime = 5
-    while ($attempt -lt $totalAttempts){
-        Write-Output "      Attempt $attempt / $totalAttempts to delete security group: $securityGroupName"
+while ($attempt -lt $totalAttempts){
+    Write-Output "      Attempt $attempt / $totalAttempts to delete security group: $securityGroupName"
+    if (Test-SecurityGroup $securityGroupName) {
+        
         try {
             Remove-EC2SecurityGroup -GroupName $securityGroupName -Force
-            break
+            if  (Test-SecurityGroup $securityGroupName) {
+                Write-Error "Failed to remove security group $securityGroupNam."
+            }
+            else {
+                Write-Output "    Security group $securityGroupName has been deleted."
+                break
+            }
+
         }
         catch {
             Write-Output "        Failed to remove security group. Error was:"
@@ -49,16 +55,9 @@ if ($secGroupExistsBefore) {
         }
         $attempt = $attempt + 1
     }
-}
-else {
-    "    $securityGroupName security group does not exist in EC2. No need to delete it."
-}
-
-# Verifying security group deleted
-$secGroupExistsAfter = Test-SecurityGroup $securityGroupName
-if ($secGroupExistsBefore -and $secGroupExistsAfter) {
-    Write-Error "    Failed to delete security group: $securityGroupName"
-}
-if ($secGroupExistsBefore -and -not $secGroupExistsAfter) {
-    Write-Output "    Security group successfully deleted."
+    else {
+        "    Security group $securityGroupName does not exist in EC2. No need to delete it."
+        break
+    }
+    $attempt = $attempt + 1
 }
