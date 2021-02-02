@@ -196,7 +196,6 @@ if ($Wait -and ($totalRequired -gt 0)){
             $time = [Math]::Floor([decimal]($stopwatch.Elapsed.TotalSeconds))
             
             # Checking the progress with IIS
-            $newMachineOnline = $false
             forEach ($ip in $ipAddresses){
                 $iisRunning = $false
                 if ($ip -notIn $machinesRunningIIS){
