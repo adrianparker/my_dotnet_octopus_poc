@@ -20,7 +20,7 @@ catch {
 
 if ($createRole) {
     Write-Output "    Creating role $roleName from policy saved at: $policy"
-    New-IAMRole -AssumeRolePolicyDocument (Get-Content -raw $policy) -RoleName $roleName | out-null
+    New-IAMRole -AssumeRolePolicyDocument (Get-Content -raw $policy) -RoleName $roleName -Tag @{ Key="RandomQuotes"; Value=""} | out-null
     Register-IAMRolePolicy -RoleName $roleName -PolicyArn arn:aws:iam::aws:policy/SecretsManagerReadWrite
 } 
 else {

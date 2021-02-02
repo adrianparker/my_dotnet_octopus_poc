@@ -4,6 +4,8 @@ param(
 
 $ErrorActionPreference = "Stop"  
 
+
+
 $createGroup = $false
 try {
     Get-EC2SecurityGroup -GroupName $securityGroupName | out-null
@@ -17,7 +19,13 @@ catch {
 if ($createGroup){
     # Creates a new security group
     Write-Output "    Creating security group $securityGroupName."
-    New-EC2SecurityGroup -GroupName $securityGroupName -Description "Accepts RDP and Octopus traffic from any IP address."
+    $securityGroup = New-EC2SecurityGroup -GroupName $securityGroupName -Description "Accepts Web, RDP and Octopus traffic from any IP address."
+
+    # Tags the security group
+    $Tag = New-Object Amazon.EC2.Model.Tag
+    $Tag.Key = "RandomQuotes"
+    $Tag.Value = ""
+    New-EC2Tag -Resource $securityGroup -Tag $Tag
 
     # Creates an IP rule to enable inbound RDP and Octopus traffic from any device and adds it to security group
     Write-Output "    Enabling public RDP traffic to all VMs in the group $securityGroupName."
