@@ -76,3 +76,9 @@ Write-Output "Executing .\helper_scripts\delete_randomquotes_iam_role.ps1..."
 Write-Output "  (No parameters)"
 & $PSScriptRoot\helper_scripts\delete_randomquotes_iam_role.ps1 
 Write-Output "*"
+
+# Verifying that everything has been deleted
+Write-Output "Executing .\helper_scripts\verify_hard_delete.ps1..."
+Write-Output "  (No parameters)"
+& $PSScriptRoot\helper_scripts\verify_hard_delete.ps1 
+Write-Output "*"
