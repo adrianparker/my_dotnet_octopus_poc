@@ -2,7 +2,7 @@ Function Install-ModuleSafely {
     param (
         [Parameter(Mandatory=$true)]$moduleName = "",
         $holdFileDir = "C:/holdingFiles",
-        [Parameter(Mandatory=$true)]$octopusApiKey = ""
+        $octopusApiKey = ""
     )
 
     # Attempting to read some variables from Octopus Deploy
@@ -54,24 +54,26 @@ Function Install-ModuleSafely {
                 $currentWaitTime = 0
             }
             # Checking to see if the other RunbookRun is actually executing
-            try {
-                $otherRunbookRunStatus = Get-RunbookRunStatus -octopusURL $OctopusUrl -octopusAPIKey $octopusApiKey -runbookRunId $currentHoldingFileText
-            }
-            catch {
-                Write-Warning "    Function Get-RunbookRunStatus failed. Cannot verify status of RunbookRun: $currentHoldingFileText"
-            }
-            # If the other RunbookRun is not actually executing, it probably failed.
-            # Delete the holding file and break the loop. 
-            if (($otherRunbookRunStatus -notlike "Executing") -and ($otherRunbookRunStatus -ne $false)){
-                Write-Verbose "    $currentHoldingFileText status is $otherRunbookRunStatus"
-                Write-Verbose "    Ignoring hold file."
+            if ($octopusApiKey.startsWith("API-")){
                 try {
-                    Remove-Item $holdingFile
+                    $otherRunbookRunStatus = Get-RunbookRunStatus -octopusURL $OctopusUrl -octopusAPIKey $octopusApiKey -runbookRunId $currentHoldingFileText
                 }
                 catch {
-                    Write-Warning "Tried to delete $holdingFile but failed."
+                    Write-Warning "    Function Get-RunbookRunStatus failed. Cannot verify status of RunbookRun: $currentHoldingFileText"
                 }
-                break
+                # If the other RunbookRun is not actually executing, it probably failed.
+                # Delete the holding file and break the loop. 
+                if (($otherRunbookRunStatus -notlike "Executing") -and ($otherRunbookRunStatus -ne $false)){
+                    Write-Verbose "    $currentHoldingFileText status is $otherRunbookRunStatus"
+                    Write-Verbose "    Ignoring hold file."
+                    try {
+                        Remove-Item $holdingFile
+                    }
+                    catch {
+                        Write-Warning "Tried to delete $holdingFile but failed."
+                    }
+                    break
+                }
             }
         }
         # ELSE, there is no holding file. Break out of the loop
