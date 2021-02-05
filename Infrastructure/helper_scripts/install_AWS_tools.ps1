@@ -64,32 +64,6 @@ catch {
     $checkHoldingProcesses = $false
 }
 
-
-######################################################
-###                HELPER FUNCTION                 ###
-######################################################
-
-# Helper functions
-Function Update-OnHoldModules {
-    $freshInstalls = ""
-    foreach ($module in $global:onHoldModules){
-        $moduleInstalled = Test-ModuleInstalled -moduleName $module
-        if ($moduleInstalled) {
-            # Add the module to $installedModules
-            $global:installedModules += $module
-            # Remove the module from $onHoldModules
-            $global:onHoldModules = $global:onHoldModules | Where-Object { $_ -notlike $module }
-            $freshInstalls += "$module, "
-        }
-    }
-    if ($freshInstalls -like ""){
-        return $false
-    }
-    else {
-        return $freshInstalls
-    }
-}
-
 ######################################################
 ###                INSTALL MODULES                 ###
 ######################################################
@@ -104,8 +78,7 @@ foreach ($module in $requiredModules){
         $holdingProcess = Test-HoldFile -holdFileName $module
         if ($holdingProcess){
             $onHoldModules = $onHoldModules + $module
-            $msg = "    Module $module is being installed by $holdingProcess" + "."
-            Write-Output $msg
+            Write-Output "    Module $module is being installed by $holdingProcess"
         }
         else {
             Write-Output "    Installing $module."
@@ -133,15 +106,13 @@ $stopwatch =  [system.diagnostics.stopwatch]::StartNew()
 $time = 0
 
 # Waiting in a holding pattern until all modules are installed
-while ($time -lt $timeout ){
-    $FreshInstalls = Update-OnHoldModules
-    if ($FreshInstalls) {
-        "    The following modules have now been installed: $FreshInstalls"
-    }
-    
-    if ($onHoldModules.length -eq 0){
-        # Looks like everything should be installed
-        break
+while ($installedModules.length -lt $requiredModules.length){
+    $remainingModules = $requiredModules | Where-Object {$_ -notin $installedModules}
+    foreach ($module in $remainingModules){
+        if (Test-ModuleInstalled -moduleName $module){
+            Write-Output "    $module is now installed"
+            $installedModules += $module
+        }
     }
     
     # Checking the status of any Runbooks that are holding us up.
@@ -154,7 +125,7 @@ while ($time -lt $timeout ){
             "Canceled",
             "Cancelling"
         )
-        foreach ($module in $onHoldModules) {
+        foreach ($module in $remainingModules) {
             $holdingProcess = Test-HoldFile -holdFileName $module
             $holdingProcessStatus = Get-RunbookRunStatus -octopusURL $OctopusUrl -octopusAPIKey $octopusApiKey -runbookRunId $holdingProcess
             Write-Output "      $module is being installed by $holdingProcess. Status is: $holdingProcessStatus"
@@ -165,14 +136,19 @@ while ($time -lt $timeout ){
                 Remove-HoldFile -holdFileName $module
                 Write-Output "      Installing $module"
                 Install-ModuleWithHoldFile -moduleName $module
-                Update-OnHoldModules                
+                Write-Output "    $module is now installed"              
             }
         }
     }
 
     # Wait a bit, then try again
-    Start-Sleep $pollFrequency
     $time = [Math]::Floor([decimal]($stopwatch.Elapsed.TotalSeconds))
+    if ($time -gt $timeout){
+        Write-Warning "This is taking an unusually long time."
+        break
+    }
+    Start-Sleep $pollFrequency
+    
 }
 
 ######################################################
