@@ -95,7 +95,7 @@ Function Test-HoldFile {
     $holdingFile = "$holdFileDir/$holdFileName.txt"
     
     # If the hold file doesn't exist, return false
-    if (-not (test-path $holdFileDir)){
+    if (-not (test-path $holdingFile)){
         # Hold file does not exists
         return $false
     }
