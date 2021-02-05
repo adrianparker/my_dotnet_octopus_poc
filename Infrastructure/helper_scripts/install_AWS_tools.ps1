@@ -68,20 +68,21 @@ catch {
 ###                INSTALL MODULES                 ###
 ######################################################
 
+Write-Output "    Installing modules."
 foreach ($module in $requiredModules){
     $holdingProcess = $false
     $moduleAlreadyInstalled = Test-ModuleInstalled -moduleName $module
     if ($moduleAlreadyInstalled){
-        Write-Output "    Module $module is already installed."
+        Write-Output "      Module $module is already installed."
     }
     else {
         $holdingProcess = Test-HoldFile -holdFileName $module
         if ($holdingProcess){
             $onHoldModules = $onHoldModules + $module
-            Write-Output "    Module $module is being installed by $holdingProcess"
-        }
+            Write-Output "      Module $module is being installed by $holdingProcess"
+        } 
         else {
-            Write-Output "    Installing $module."
+            Write-Output "      Installing $module."
             $installed = Install-ModuleWithHoldFile -moduleName $module
             if ($installed){
                 $installedModules = $installedModules + $module
@@ -94,18 +95,23 @@ foreach ($module in $requiredModules){
 ###          HOLD FOR COMPETING PROCESSES           ##
 ######################################################
 
-# A little config for the holding pattern while loop
-if ((-not ($octopusAPIKey.StartsWith("API-"))) -and ($onHoldModules.length -gt 0)){
-    Write-Warning "Octopus API key not formatted correctly."
-    Write-Output "Will skip checks that competing runbooks are actually executing."
-    $checkHoldingProcesses = $false
+# A little logging
+if ($onHoldModules.length -gt 0) {
+    Write-Output "    Verifying that other runbook(s) have finished installing other modules."
+    if (-not ($octopusAPIKey.StartsWith("API-"))){
+        Write-Warning "Octopus API key not formatted correctly."
+        Write-Output "Will skip checks that competing runbooks are actually executing."
+        $checkHoldingProcesses = $false
+    }
 }
+
+# A little config for holding loop
 $time = 0
 $timeout = 100
 $pollFrequency = 5
 $stopwatch =  [system.diagnostics.stopwatch]::StartNew()
 
-# Waiting in a holding pattern until all modules are installed
+# Waiting in a holding loop until all modules are installed
 while ($installedModules.length -lt $requiredModules.length){
     $remainingModules = $requiredModules | Where-Object {$_ -notin $installedModules}
     foreach ($module in $remainingModules){
@@ -129,7 +135,8 @@ while ($installedModules.length -lt $requiredModules.length){
         foreach ($module in $remainingModules) {
             $holdingProcess = Test-HoldFile -holdFileName $module
             $holdingProcessStatus = Get-RunbookRunStatus -octopusURL $OctopusUrl -octopusAPIKey $octopusApiKey -runbookRunId $holdingProcess
-            Write-Output "      $module is being installed by $holdingProcess. Status is: $holdingProcessStatus"
+            
+            Write-Output "      $time / $timeout seconds: $module is being installed by $holdingProcess"
             if ($holdingProcessStatus -in $unexpectedStatusses){
                 Write-Warning "$holdingProcess should not be holding this installation of $module"
                 Write-Output "    Attempt to take over install of $module"

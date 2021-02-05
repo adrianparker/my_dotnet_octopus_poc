@@ -133,8 +133,12 @@ Function Install-ModuleWithHoldFile {
 
     if ($holdFileCreated){
         # Installs the module
+        try {
         Install-Module $moduleName -Force | out-null
-    
+        }
+        catch {
+            Write-Warning "Failed to install $moduleName. Most likely some other process is doing it."
+        }
         # Removes the hold file
         Remove-HoldFile -holdFileName $moduleName | out-null
         return $true
