@@ -15,14 +15,11 @@ To keep this simple, I've extracted a few helper functions to \Infrastructure\he
 - Remove-HoldFile
 - Test-ModuleInstalled
 - Install-ModuleWithHoldFile
-- Get-RunbookRunStatus
 #>
-
 
 ######################################################
 ###                     CONFIG                     ###
 ######################################################
-
 
 $ErrorActionPreference = "Stop"  
 
@@ -38,31 +35,6 @@ $requiredModules = @(
     "AWS.Tools.SecretsManager"
 )
 $installedModules = @()
-$onHoldModules = @()
-
-# Getting the Octopus URL and API Key from Octopus Variables 
-# NOTE: If you want to check the status of competing runbook runs, you need to create an Octopus Variable called OCTOPUS_APIKEY. 
-#   (Remember to make it sensitive!)
-$checkHoldingProcesses = $true
-$octopusApiKey = ""
-try {
-    $octopusApiKey = $OctopusParameters["OCTOPUS_APIKEY"]
-    Write-Output "    Found OCTOPUS_APIKEY from Octopus variables."
-}
-catch {
-    Write-Output "    Failed to read variable OCTOPUS_APIKEY from Octopus Project variables."
-    Write-Output "      Will skip checks to see if competing runbookRuns are still running."
-    $checkHoldingProcesses = $false
-}
-$OctopusUrl = ""
-try {
-    $OctopusUrl = $OctopusParameters["Octopus.Web.ServerUri"]
-}
-catch {
-    Write-Output "    Failed to read variable Octopus.Web.ServerUri from Octopus System Variables."
-    Write-Output "      Will skip checks to see if competing runbookRuns are still running."
-    $checkHoldingProcesses = $false
-}
 
 ######################################################
 ###                INSTALL MODULES                 ###
@@ -70,7 +42,6 @@ catch {
 
 Write-Output "    Installing modules."
 foreach ($module in $requiredModules){
-    $holdingProcess = $false
     $moduleAlreadyInstalled = Test-ModuleInstalled -moduleName $module
     if ($moduleAlreadyInstalled){
         Write-Output "      Module $module is already installed."
@@ -78,13 +49,13 @@ foreach ($module in $requiredModules){
     else {
         $holdingProcess = Test-HoldFile -holdFileName $module
         if ($holdingProcess){
-            $onHoldModules = $onHoldModules + $module
             Write-Output "      Module $module is being installed by $holdingProcess"
         } 
         else {
             Write-Output "      Installing $module."
-            $installed = Install-ModuleWithHoldFile -moduleName $module
-            if ($installed){
+            Install-ModuleWithHoldFile -moduleName $module
+            if (Test-ModuleInstalled -moduleName $module){
+                Write-Output "        $module has been installed successfully."
                 $installedModules = $installedModules + $module
             }
         }
@@ -95,79 +66,45 @@ foreach ($module in $requiredModules){
 ###          HOLD FOR COMPETING PROCESSES           ##
 ######################################################
 
-# A little logging
-if ($onHoldModules.length -gt 0) {
-    Write-Output "    Verifying that other runbook(s) have finished installing other modules."
-    if (-not ($octopusAPIKey.StartsWith("API-"))){
-        Write-Warning "Octopus API key not formatted correctly."
-        Write-Output "Will skip checks that competing runbooks are actually executing."
-        $checkHoldingProcesses = $false
-    }
-}
+if ($installedModules.length -lt $requiredModules.length) {
+    Write-Output "    Waiting for all modules to finish installing..."
+        
+    # A little config for holding loop
+    $time = 0
+    $timeout = 100
+    $pollFrequency = 5
+    $stopwatch =  [system.diagnostics.stopwatch]::StartNew()
 
-# A little config for holding loop
-$time = 0
-$timeout = 100
-$pollFrequency = 5
-$stopwatch =  [system.diagnostics.stopwatch]::StartNew()
-
-# Waiting in a holding loop until all modules are installed
-while ($installedModules.length -lt $requiredModules.length){
-    $remainingModules = $requiredModules | Where-Object {$_ -notin $installedModules}
-    foreach ($module in $remainingModules){
-        if (Test-ModuleInstalled -moduleName $module){
-            Write-Output "    $module is now installed"
-            $installedModules += $module
-        }
-    }
-    
-    # Checking the status of any Runbooks that are holding us up.
-    # If other process is not executing, delete the hold file and install.
-    $remainingModules = $requiredModules | Where-Object {$_ -notin $installedModules}
-    if ($checkHoldingProcesses){
-        $unexpectedStatusses = @(
-            "Success",
-            "Failed",
-            "TimedOut",
-            "Canceled",
-            "Cancelling"
-        )
-        foreach ($module in $remainingModules) {
-            $holdingProcess = Test-HoldFile -holdFileName $module
-            $holdingProcessStatus = Get-RunbookRunStatus -octopusURL $OctopusUrl -octopusAPIKey $octopusApiKey -runbookRunId $holdingProcess
-            
-            Write-Output "      $time / $timeout seconds: $module is being installed by $holdingProcess"
-            if ($holdingProcessStatus -in $unexpectedStatusses){
-                Write-Warning "$holdingProcess should not be holding this installation of $module"
-                Write-Output "    Attempt to take over install of $module"
-                Write-Output "      Deleting holding file."
-                Remove-HoldFile -holdFileName $module
-                Write-Output "      Installing $module"
-                Install-ModuleWithHoldFile -moduleName $module
-                Write-Output "    $module is now installed"
-                $stopwatch.Restart()         
+    # Waiting in a holding loop until all modules are installed
+    while ($installedModules.length -lt $requiredModules.length){
+        $remainingModules = $requiredModules | Where-Object {$_ -notin $installedModules}
+        foreach ($module in $remainingModules){
+            if (Test-ModuleInstalled -moduleName $module){
+                Write-Output "      $module is now installed"
+                $installedModules += $module
             }
         }
-    }
-    else {
-        "      $time / $timeout seconds: Waiting for $remainingModules to install"
-    }
 
-    # Wait a bit, then try again
-    $time = [Math]::Floor([decimal]($stopwatch.Elapsed.TotalSeconds))
-    if ($time -gt $timeout){
-        Write-Warning "This is taking an unusually long time."
-        break
+        # Logging progress
+        $remainingModules = $requiredModules | Where-Object {$_ -notin $installedModules}
+        $numRemaining = $remainingModules.length
+        $numRequired = $requiredModules.length
+        Write-Output    "      $time / $timeout seconds: $numRemaining / $numRequired modules installed..."
+
+        # Wait a bit, then try again
+        $time = [Math]::Floor([decimal]($stopwatch.Elapsed.TotalSeconds))
+        if ($time -gt $timeout){
+            Write-Warning "This is taking an unusually long time."
+            break
+        }
+        Start-Sleep $pollFrequency
     }
-    Start-Sleep $pollFrequency
-    
 }
 
 ######################################################
 ###          CHECK ALL MODULES INSTALLED           ###
 ######################################################          
 
-# Validating all modules installed successfully
 $successfulInstalls = @()
 $failedInstalls = @()
 foreach ($module in $requiredModules){

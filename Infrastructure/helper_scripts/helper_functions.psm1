@@ -1,41 +1,3 @@
-Function Get-RunbookRunStatus {
-    param (
-        [Parameter(Mandatory=$true)]$octopusURL, # e.g. "https://example.octopus.app"
-        [Parameter(Mandatory=$true)]$octopusAPIKey, # e.g. "API-12345667890ABCDEF"
-        [Parameter(Mandatory=$true)]$runbookRunId # e.g. "RunbookRuns-123"
-    )
-
-    <#
-    Possible states include:
-    - Executing
-    - Success
-    - Failed
-    - TimedOut
-    - Canceled
-    - Canceling (or Cancelling? Not managed to repro and link below is ambiguous.)
-    - Queued
-    #>
-
-    if (-not ($octopusAPIKey.StartsWith("API-"))){
-        Write-Error "Octopus API Key is not valid: $octopusAPIKey"
-    }
-
-    # Using API Key provided above to create a header to authenticate against the Octopus API
-    $header = @{ "X-Octopus-ApiKey" = $octopusAPIKey }
-
-    # First we need to use the API to find the ServerTask link for the Runbook Run
-    $runbookRun = (Invoke-RestMethod -Method Get -Uri "$octopusURL/api/Spaces-1/runbookruns" -Headers $header).Items | Where-Object {($_.Id -like $runbookRunId)}
-    $taskUrlSuffix = $runbookRun.Links.Task
-    $taskUrl = $octopusURL + $taskUrlSuffix
-
-    # Then we make a second API call to determine the status of the ServerTask
-    $serverTask = (Invoke-RestMethod -Method Get -Uri $taskUrl -Headers $header)
-    
-    $state = $serverTask.State
-    
-    return $state
-}
-
 Function New-HoldFile {
     param (
         $holdFileName = "hold",
@@ -133,15 +95,17 @@ Function Install-ModuleWithHoldFile {
 
     if ($holdFileCreated){
         # Installs the module
+        $installed = $false
         try {
-        Install-Module $moduleName -Force | out-null
+            Install-Module $moduleName -Force | out-null
+            $installed = $true
         }
         catch {
             Write-Warning "Failed to install $moduleName. Most likely some other process is doing it."
         }
         # Removes the hold file
         Remove-HoldFile -holdFileName $moduleName | out-null
-        return $true
+        return $installed
     }
     else {
         return $false
