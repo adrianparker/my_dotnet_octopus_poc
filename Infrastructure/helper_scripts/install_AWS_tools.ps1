@@ -117,6 +117,7 @@ while ($installedModules.length -lt $requiredModules.length){
     
     # Checking the status of any Runbooks that are holding us up.
     # If other process is not executing, delete the hold file and install.
+    $remainingModules = $requiredModules | Where-Object {$_ -notin $installedModules}
     if ($checkHoldingProcesses){
         $unexpectedStatusses = @(
             "Success",
@@ -136,9 +137,13 @@ while ($installedModules.length -lt $requiredModules.length){
                 Remove-HoldFile -holdFileName $module
                 Write-Output "      Installing $module"
                 Install-ModuleWithHoldFile -moduleName $module
-                Write-Output "    $module is now installed"              
+                Write-Output "    $module is now installed"
+                $stopwatch.Restart()         
             }
         }
+    }
+    else {
+        "      $time / $timeout seconds: Waiting for $remainingModules to install"
     }
 
     # Wait a bit, then try again
