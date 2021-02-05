@@ -78,7 +78,7 @@ Function Update-OnHoldModules {
             # Add the module to $installedModules
             $global:installedModules += $module
             # Remove the module from $onHoldModules
-            $global:onHoldModules = $global:onHoldModules | Where-Object { $_ –notlike "$module" }
+            $global:onHoldModules = $global:onHoldModules | Where-Object { $_ -notlike $module }
             $freshInstalls += "$module, "
         }
     }
