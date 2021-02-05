@@ -53,10 +53,10 @@ foreach ($module in $requiredModules){
         } 
         else {
             Write-Output "      Installing $module."
-            Install-ModuleWithHoldFile -moduleName $module
+            Install-ModuleWithHoldFile -moduleName $module | out-null
             if (Test-ModuleInstalled -moduleName $module){
                 Write-Output "        $module has been installed successfully."
-                $installedModules = $installedModules + $module
+                $installedModules += $module
             }
         }
     }
@@ -86,10 +86,9 @@ if ($installedModules.length -lt $requiredModules.length) {
         }
 
         # Logging progress
-        $remainingModules = $requiredModules | Where-Object {$_ -notin $installedModules}
-        $numRemaining = $remainingModules.length
+        $numInstalled = $installedModules.length
         $numRequired = $requiredModules.length
-        Write-Output    "      $time / $timeout seconds: $numRemaining / $numRequired modules installed..."
+        Write-Output    "      $time / $timeout seconds: $numInstalled / $numRequired modules installed..."
 
         # Wait a bit, then try again
         $time = [Math]::Floor([decimal]($stopwatch.Elapsed.TotalSeconds))
