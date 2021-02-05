@@ -95,6 +95,7 @@ Function Update-OnHoldModules {
 ######################################################
 
 foreach ($module in $requiredModules){
+    $holdingProcess = $false
     $moduleAlreadyInstalled = Test-ModuleInstalled -moduleName $module
     if ($moduleAlreadyInstalled){
         Write-Output "    Module $module is already installed."
@@ -103,7 +104,8 @@ foreach ($module in $requiredModules){
         $holdingProcess = Test-HoldFile -holdFileName $module
         if ($holdingProcess){
             $onHoldModules = $onHoldModules + $module
-            Write-Output "    Module $module is being installed by $holdingProcess."
+            $msg = "    Module $module is being installed by $holdingProcess."
+            Write-Output $msg
         }
         else {
             Write-Output "    Installing $module."
