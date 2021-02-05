@@ -145,22 +145,25 @@ while ($onHoldModules -gt 0){
     # Checking the status of any Runbooks that are holding us up.
     # If other process is not executing, delete the hold file and install.
     if ($checkHoldingProcesses){
+        $unexpectedStatusses = @(
+            "Success",
+            "Failed",
+            "TimedOut",
+            "Canceled",
+            "Cancelling"
+        )
         foreach ($module in $onHoldModules) {
             $holdingProcess = Test-HoldFile -holdFileName $module
             $holdingProcessStatus = Get-RunbookRunStatus -octopusURL $OctopusUrl -octopusAPIKey $octopusApiKey -runbookRunId $holdingProcess
-            if ($holdingProcessStatus -ne ""){
-                if ($holdingProcessStatus -like "Executing"){
-                    Write-Output "      $module is being installed by $holdingProcess."
-                }
-                else {
-                    Write-Warning "$module was being installed by $holdingProcess. However, $holdingProcess status is $holdingProcessStatus."
-                    Write-Output "    Attempt to take over install of $module"
-                    Write-Output "      Deleting holding file."
-                    Remove-HoldFile -holdFileName $module
-                    Write-Output "      Installing $module"
-                    Install-ModuleWithHoldFile -moduleName $module
-                    Update-OnHoldModules
-                }
+            Write-Output "      $module is being installed by $holdingProcess. Status is: $holdingProcessStatus"
+            if ($holdingProcessStatus -in $unexpectedStatusses){
+                Write-Warning "$holdingProcess should not be holding this installation of $module"
+                Write-Output "    Attempt to take over install of $module"
+                Write-Output "      Deleting holding file."
+                Remove-HoldFile -holdFileName $module
+                Write-Output "      Installing $module"
+                Install-ModuleWithHoldFile -moduleName $module
+                Update-OnHoldModules                
             }
         }
     }
