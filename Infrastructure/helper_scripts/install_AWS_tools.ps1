@@ -67,7 +67,7 @@ foreach ($module in $requiredModules){
 ######################################################
 
 if ($installedModules.length -lt $requiredModules.length) {
-    Write-Output "    Waiting for all modules to finish installing..."
+    Write-Output "    Waiting for all modules to finish installing."
         
     # A little config for holding loop
     $time = 0
@@ -88,7 +88,10 @@ if ($installedModules.length -lt $requiredModules.length) {
         # Logging progress
         $numInstalled = $installedModules.length
         $numRequired = $requiredModules.length
-        Write-Output    "      $time / $timeout seconds: $numInstalled / $numRequired modules installed..."
+        if ($numInstalled -eq $numRequired){
+            break
+        }
+        Write-Output    "      $time/$timeout seconds: $numInstalled/$numRequired modules installed."
 
         # Wait a bit, then try again
         $time = [Math]::Floor([decimal]($stopwatch.Elapsed.TotalSeconds))
@@ -115,7 +118,7 @@ foreach ($module in $requiredModules){
         $failedInstalls += $module
     }
 }
-Write-Output "    Successfully installed the following modules: $successfulInstalls"
+Write-Output "    All modules installed successfully."
 
 if ($failedInstalls.length -gt 0){
     $errorMsg = "FAILED TO INSTALL: $failedInstalls"
