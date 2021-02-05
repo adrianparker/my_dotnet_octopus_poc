@@ -1,118 +1,3 @@
-Function Install-ModuleSafely {
-    param (
-        [Parameter(Mandatory=$true)]$moduleName = "",
-        $holdFileDir = "C:/holdingFiles",
-        $octopusApiKey = ""
-    )
-
-    # Attempting to read some variables from Octopus Deploy
-    $OctopusUrl = "[OctopusUrl unknown]"
-    try {
-        $OctopusUrl = $OctopusParameters["Octopus.Web.ServerUri"]
-    }
-    $RunbookRunId = "[RunbookRunId unknown]"
-    try {
-        $RunbookRunId = $OctopusParameters["Octopus.RunbookRun.Id"]
-    }
-
-    # Creating a directory to store holding files
-    if (-not (test-path $holdFileDir)){
-        Write-Verbose "    Creating directory: $holdFileDir"
-        try {
-            New-Item -Type Directory $holdFileDir | out-null
-        }
-        catch {
-            if (-not (test-path $holdFileDir)){
-                Write-Error "Failed to create $holdFileDir when trying to install $moduleName"
-            }
-        }
-    }
-
-    # The holding file should be saved to this location
-    $holdingFile = "$holdFileDir/$moduleName.txt"
-
-    # IF another runbook has created a holding file
-    # AND the other runbook is currently executing
-    # THEN wait until the holding file dissappears
-    # OTHERWISE, create a new holding file and continue
-    $currentWaitTime = 0
-    $previousText = ""
-    while ($currentWaitTime -lt 100){
-        $currentHoldingFileText = ""
-        # IF Another runbook has created a holding file
-        if (test-path $holdingFile){
-            # Reading the hold file to check which RunbookRun is holding us up.
-            try {
-                $currentHoldingFileText = Get-Content -Path $holdingFile -Raw
-                Write-Verbose "    Installation is blocked by $currentHoldingFileText"
-            }
-            catch {
-                Write-Verbose "    Could not read $holdingFile"
-            }
-            # If it's a different RunbookRun from last time, let's restart our timer.
-            if ($previousText -notlike $currentHoldingFileText){
-                $currentWaitTime = 0
-            }
-            # Checking to see if the other RunbookRun is actually executing
-            if ($octopusApiKey.startsWith("API-")){
-                try {
-                    $otherRunbookRunStatus = Get-RunbookRunStatus -octopusURL $OctopusUrl -octopusAPIKey $octopusApiKey -runbookRunId $currentHoldingFileText
-                }
-                catch {
-                    Write-Warning "    Function Get-RunbookRunStatus failed. Cannot verify status of RunbookRun: $currentHoldingFileText"
-                }
-                # If the other RunbookRun is not actually executing, it probably failed.
-                # Delete the holding file and break the loop. 
-                if (($otherRunbookRunStatus -notlike "Executing") -and ($otherRunbookRunStatus -ne $false)){
-                    Write-Verbose "    $currentHoldingFileText status is $otherRunbookRunStatus"
-                    Write-Verbose "    Ignoring hold file."
-                    try {
-                        Remove-Item $holdingFile
-                    }
-                    catch {
-                        Write-Warning "Tried to delete $holdingFile but failed."
-                    }
-                    break
-                }
-            }
-        }
-        # ELSE, there is no holding file. Break out of the loop
-        else {
-            break
-        }
-        # Preparing for another trip around this loop
-        Start-Sleep 5
-        $currentWaitTime = $currentWaitTime + 5
-        $previousText = $currentHoldingFileText    
-    }
-
-    # Creating the holding file
-    Write-Verbose "    Creating a holding file at: $holdingFile"
-    try {$RunbookRunId | out-file $holdingFile
-    }
-    catch {
-        Write-Warning "Failed to create a holding file."
-    }
-
-    # Installing the module
-    if ($Installedmodules.name -contains $moduleName){
-        Write-Output "      $moduleName is already installed "
-    }
-    else {
-        Write-Output "      $moduleName is not installed."
-        Write-Output "        Installing $moduleName..."
-        Install-Module $moduleName -Force
-    }
-
-    # Removing the holding file
-    try {
-        Remove-Item $holdingFile
-    }
-    catch {
-        Write-Warning "Tried to delete $holdingFile but failed."
-    }
-}
-
 Function Get-RunbookRunStatus {
     param (
         [Parameter(Mandatory=$true)]$octopusURL, # e.g. "https://example.octopus.app"
@@ -120,8 +5,19 @@ Function Get-RunbookRunStatus {
         [Parameter(Mandatory=$true)]$runbookRunId # e.g. "RunbookRuns-123"
     )
 
+    <#
+    Possible states include:
+    - Executing
+    - Success
+    - Failed
+    - TimedOut
+    - Canceled
+    - Canceling (or Cancelling? Not managed to repro and link below is ambiguous.)
+    - Queued
+    #>
+
     if (-not ($octopusAPIKey.StartsWith("API-"))){
-        return $false
+        Write-Error "Octopus API Key is not valid: $octopusAPIKey"
     }
 
     # Using API Key provided above to create a header to authenticate against the Octopus API
@@ -138,4 +34,110 @@ Function Get-RunbookRunStatus {
     $state = $serverTask.State
     
     return $state
+}
+
+Function New-HoldFile {
+    param (
+        $holdFileName = "hold",
+        $holdFileDir = "C:/holdingFiles"
+    )
+
+    # Holding file will be created here
+    $holdingFile = "$holdFileDir/$holdFileName.txt"
+    
+    # Checking the RunbookRunId
+    $RunbookRunId = "[RunbookRunId unknown]"
+    try {
+        $RunbookRunId = $OctopusParameters["Octopus.RunbookRun.Id"]
+    }
+    catch {
+        Write-Warning "Unable to read Octopus.RunbookRun.Id from Octopus variables"
+    }
+    
+    # Creating the holding file
+    try {
+        $RunbookRunId | out-file $holdingFile | out-null
+        return $true
+    }
+    catch {
+        Write-Warning "Failed to create holding file."
+        return $false
+    }
+}
+
+Function Test-HoldFile {
+    param (
+        $holdFileName = "hold",
+        $holdFileDir = "C:/holdingFiles"
+    )
+
+    # Holding file should be here
+    $holdingFile = "$holdFileDir/$holdFileName.txt"
+    
+    # If the hold file doesn't exist, return false
+    if (-not (test-path $holdFileDir)){
+        # Hold file does not exists
+        return $false
+    }
+
+    # Otherwise, return the content of the holding file 
+    try {
+        $text = Get-Content -Path $holdingFile -Raw
+    }
+    catch {
+        $text = "Unable to read hold file $holdingFile"
+    }
+    return $text
+}
+
+Function Remove-HoldFile {
+    param (
+        $holdFileName = "hold",
+        $holdFileDir = "C:/holdingFiles"
+    )
+    
+    # Holding file should be here
+    $holdingFile = "$holdFileDir/$holdFileName.txt"
+
+    # Deleting the holding file
+    try {
+        Remove-Item $holdingFile | out-null
+    }
+    catch {
+        Write-Warning "Tried to delete $holdingFile but failed."
+    }
+}
+
+Function Install-ModuleWithHoldFile {
+    param (
+        [Parameter(Mandatory=$true)]$moduleName
+    )
+    
+    # Creates a hold file, to warn any parrallel processes
+    $holdFileCreated = New-HoldFile -holdFileName $moduleName
+
+    if ($holdFileCreated){
+        # Installs the module
+        Install-Module $moduleName -Force | out-null
+    
+        # Removes the hold file
+        Remove-HoldFile -holdFileName $moduleName | out-null
+        return $true
+    }
+    else {
+        return $false
+    }
+}
+
+Function Test-ModuleInstalled {
+    param (
+        [Parameter(Mandatory=$true)]$moduleName
+    )
+
+    If (Get-InstalledModule $moduleName -ErrorAction silentlycontinue) {
+        return $true
+    }
+    else {
+        return $false
+    }
 }
