@@ -63,7 +63,7 @@ foreach ($module in $requiredModules){
 }
 
 ######################################################
-###          HOLD FOR COMPETING PROCESSES           ##
+###          HOLD FOR COMPETING PROCESSES          ###
 ######################################################
 
 if ($installedModules.length -lt $requiredModules.length) {
