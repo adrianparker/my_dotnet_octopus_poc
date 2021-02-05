@@ -104,7 +104,7 @@ foreach ($module in $requiredModules){
         $holdingProcess = Test-HoldFile -holdFileName $module
         if ($holdingProcess){
             $onHoldModules = $onHoldModules + $module
-            $msg = "    Module $module is being installed by $holdingProcess."
+            $msg = "    Module $module is being installed by $holdingProcess" + "."
             Write-Output $msg
         }
         else {
@@ -113,7 +113,6 @@ foreach ($module in $requiredModules){
             if ($installed){
                 $installedModules = $installedModules + $module
             }
-
         }
     }
 }
@@ -131,9 +130,10 @@ if ((-not ($octopusAPIKey.StartsWith("API-"))) -and ($onHoldModules.length -gt 1
     $checkHoldingProcesses = $false
 }
 $stopwatch =  [system.diagnostics.stopwatch]::StartNew()
+$time = 0
 
 # Waiting in a holding pattern until all modules are installed
-while ($onHoldModules.length -gt 0){
+while ($time -lt $timeout ){
     $FreshInstalls = Update-OnHoldModules
     if ($FreshInstalls) {
         "    The following modules have now been installed: $FreshInstalls"
@@ -170,15 +170,9 @@ while ($onHoldModules.length -gt 0){
         }
     }
 
-    # If taking too long, time out
-    $currentTime = [Math]::Floor([decimal]($stopwatch.Elapsed.TotalSeconds))
-    if ($currentTime -gt $timeout) {
-        Write-Error "TIMED OUT!: Locking processes seem to be taking an unusually long time to complete."
-        break
-    }
-
     # Wait a bit, then try again
     Start-Sleep $pollFrequency
+    $time = [Math]::Floor([decimal]($stopwatch.Elapsed.TotalSeconds))
 }
 
 ######################################################

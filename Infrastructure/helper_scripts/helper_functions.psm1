@@ -93,21 +93,16 @@ Function Test-HoldFile {
 
     # Holding file should be here
     $holdingFile = "$holdFileDir/$holdFileName.txt"
-    
-    # If the hold file doesn't exist, return false
-    if (-not (test-path $holdingFile)){
-        # Hold file does not exists
-        return $false
-    }
 
     # Otherwise, return the content of the holding file 
     try {
         $text = Get-Content -Path $holdingFile -Raw
+        return $text
     }
     catch {
-        $text = "Unable to read hold file $holdingFile"
+        return $false
     }
-    return $text
+    Write-Error "Something went wrong with the Test-HoldFile function"
 }
 
 Function Remove-HoldFile {
