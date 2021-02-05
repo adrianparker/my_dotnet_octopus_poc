@@ -133,7 +133,7 @@ if ((-not ($octopusAPIKey.StartsWith("API-"))) -and ($onHoldModules.length -gt 1
 $stopwatch =  [system.diagnostics.stopwatch]::StartNew()
 
 # Waiting in a holding pattern until all modules are installed
-while ($onHoldModules -gt 0){
+while ($onHoldModules.length -gt 0){
     $FreshInstalls = Update-OnHoldModules
     if ($FreshInstalls) {
         "    The following modules have now been installed: $FreshInstalls"
