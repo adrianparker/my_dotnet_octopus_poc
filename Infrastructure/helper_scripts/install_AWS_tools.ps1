@@ -95,15 +95,15 @@ foreach ($module in $requiredModules){
 ######################################################
 
 # A little config for the holding pattern while loop
-$timeout = 100
-$pollFrequency = 5
-if ((-not ($octopusAPIKey.StartsWith("API-"))) -and ($onHoldModules.length -gt 1)){
+if ((-not ($octopusAPIKey.StartsWith("API-"))) -and ($onHoldModules.length -gt 0)){
     Write-Warning "Octopus API key not formatted correctly."
     Write-Output "Will skip checks that competing runbooks are actually executing."
     $checkHoldingProcesses = $false
 }
-$stopwatch =  [system.diagnostics.stopwatch]::StartNew()
 $time = 0
+$timeout = 100
+$pollFrequency = 5
+$stopwatch =  [system.diagnostics.stopwatch]::StartNew()
 
 # Waiting in a holding pattern until all modules are installed
 while ($installedModules.length -lt $requiredModules.length){
