@@ -42,6 +42,26 @@ Function New-HoldFile {
         $holdFileDir = "C:/holdingFiles"
     )
 
+    # Creating directory for holding files
+    if (-not (test-path $holdFileDir)){
+        Write-Verbose "    Creating directory: $holdFileDir"
+        try {
+            New-Item -Type Directory $holdFileDir | out-null
+        }
+        catch {
+            Write-Verbose "    Failed to create directory. This sometimes happens if two runbooks are running simultaneously on the same worker."
+            # creating a little random delay to avoid race conditions
+            $random = Get-Random -Maximum 10
+            Start-Sleep $random
+            if (test-path $holdFileDir){
+                Write-Verbose "    $holdFileDir now exists now."
+            }
+            else {
+                Write-Error "Failed to create $holdFileDir"
+            }
+        }
+    }
+
     # Holding file will be created here
     $holdingFile = "$holdFileDir/$holdFileName.txt"
     
