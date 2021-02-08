@@ -1,7 +1,9 @@
 param(
     $awsAccessKey = "",
     $awsSecretKey = "",
-    $defaulAwsRegion = "eu-west-1" # Other carbon neutral regions are listed here: https://aws.amazon.com/about-aws/sustainability/
+    $defaulAwsRegion = "eu-west-1", # Other carbon neutral regions are listed here: https://aws.amazon.com/about-aws/sustainability/
+    [Switch]$SkipKeyPair,
+    [Switch]$SkipSecrets
 )
 
 $ErrorActionPreference = "Stop"  
@@ -59,10 +61,15 @@ Write-Output "  (No parameters)"
 & $PSScriptRoot\helper_scripts\delete_all_randomquotes_infra.ps1 
 Write-Output "*"
 
-# Delete the RandomQuotes Keypair
-Write-Output "Executing .\helper_scripts\delete_randomquotes_keypair.ps1..."
-Write-Output "  (No parameters)"
-& $PSScriptRoot\helper_scripts\delete_randomquotes_keypair.ps1 
+if ($SkipKeyPair){
+    Write-Output "Skipping the keypair..."
+}
+else {
+    # Delete the RandomQuotes Keypair
+    Write-Output "Executing .\helper_scripts\delete_randomquotes_keypair.ps1..."
+    Write-Output "  (No parameters)"
+    & $PSScriptRoot\helper_scripts\delete_randomquotes_keypair.ps1 
+}
 Write-Output "*"
 
 # Delete the RandomQuotes Security Group
@@ -77,17 +84,23 @@ Write-Output "  (No parameters)"
 & $PSScriptRoot\helper_scripts\delete_randomquotes_iam_role.ps1 
 Write-Output "*"
 
-# Deleting AWS Secrets
-Write-Output "Deleting AWS Secret: OCTOPUS_APIKEY"
-Remove-SECSecret -SecretId OCTOPUS_APIKEY -DeleteWithNoRecovery:$true -Force | Out-Null
-Write-Output "Deleting AWS Secret: OCTOPUS_THUMBPRINT"
-Remove-SECSecret -SecretId OCTOPUS_THUMBPRINT -DeleteWithNoRecovery:$true -Force | Out-Null
+if ($SkipSecrets){
+    Write-Output "Skipping the secrets..."
+}
+else {
+    # Deleting AWS Secrets
+    Write-Output "Deleting AWS Secret: OCTOPUS_APIKEY"
+    Remove-SECSecret -SecretId OCTOPUS_APIKEY -DeleteWithNoRecovery:$true -Force | Out-Null
+    Write-Output "Deleting AWS Secret: OCTOPUS_THUMBPRINT"
+    Remove-SECSecret -SecretId OCTOPUS_THUMBPRINT -DeleteWithNoRecovery:$true -Force | Out-Null
+}
 Write-Output "*"
-Write-Output " "
-Write-Output "RandomQuotes is Dead."
 
 # Verifying that everything has been deleted
 Write-Output "Executing .\helper_scripts\verify_hard_delete.ps1..."
 Write-Output "  (No parameters)"
 & $PSScriptRoot\helper_scripts\verify_hard_delete.ps1 
 Write-Output "*"
+
+Write-Output " "
+Write-Output "RandomQuotes is Dead."
