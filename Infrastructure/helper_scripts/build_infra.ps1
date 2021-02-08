@@ -158,7 +158,7 @@ while (-not $complete){
                 Write-Output "        Tentacle is listening on $ip"
                 Write-Output "          Updating Calamari on $ip"
                 # Update-Calamari function is in ./helperfunctions.psm1
-                Update-Calimari -ip $ip -OctopusUrl $octoUrl -APIKey $APIKey
+                Update-Calamari -ip $ip -OctopusUrl $octoUrl -APIKey $APIKey
             }
         }
     }
