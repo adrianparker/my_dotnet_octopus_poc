@@ -68,7 +68,7 @@ Write-Output "      Instances will each have tag $role with value $tagValue."
 $NewInstances = New-EC2Instance -ImageId $ami -MinCount $count -MaxCount $count -InstanceType $instanceType -UserData $encodedUserData -KeyName RandomQuotes -SecurityGroup RandomQuotes -IamInstanceProfile_Name RandomQuotes
 
 # Tagging all the instances
-$NewInstanceIds = $NewInstances.InstanceId
+$NewInstanceIds = $NewInstances.Instances.InstanceId
 ForEach ($InstanceID in $NewInstanceIds){
     New-EC2Tag -Resources $( $InstanceID ) -Tags @(
         @{ Key=$role; Value=$tagValue}
