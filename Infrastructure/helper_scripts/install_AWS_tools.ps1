@@ -80,7 +80,6 @@ if ($installedModules.length -lt $requiredModules.length) {
         $remainingModules = $requiredModules | Where-Object {$_ -notin $installedModules}
         foreach ($module in $remainingModules){
             if (Test-ModuleInstalled -moduleName $module){
-                Write-Output "      $module is now installed"
                 $installedModules += $module
             }
         }
