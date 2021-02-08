@@ -194,7 +194,7 @@ while (-not $complete){
     
     # If we've been waiting too long, time out
     if ($time -gt $timeout){
-        Write-Error "Timed out at $time seconds. Timeout currently set to $timeout seconds. There is a parameter on this script to adjust the default timeout."
+        Write-Error "Timed out at $time seconds."
     }
 
     Start-Sleep -s 15
