@@ -141,10 +141,34 @@ function Test-IIS {
     }
 }
 
-# Updates calimari on a given machine
-function Update-Calimari {
+# Checks whether a tentacle exists with a specific IP address
+function Test-Tentacle {
     param (
-        [Parameter(Mandatory=$true)][string]$MachineId,
+        [Parameter(Mandatory=$true)][string]$ip,
+        [Parameter(Mandatory=$true)][string]$OctopusUrl,
+        [Parameter(Mandatory=$true)][string]$APIKey        
+    )
+    # Authenticating to the API
+    try {
+        $header = @{ "X-Octopus-ApiKey" = $APIKey }
+    }
+    catch {
+        Write-Warning 'Failed to read the Octopus API Key from $OctopusParameters["API_KEY"].'
+    }
+    $URL = "https://" + $ip + ":10933/"
+    $allMachines = ((Invoke-WebRequest ("$OctopusUrl/api/machines") -Headers $header -UseBasicParsing).content | ConvertFrom-Json).items
+    if ($allMachines.Uri -contains $URL){
+        return $true
+    }
+    else {
+        return $false
+    }
+}
+
+# Updates calimari on a given machine
+function Update-Calamari {
+    param (
+        [Parameter(Mandatory=$true)][string]$ip,
         [Parameter(Mandatory=$true)][string]$OctopusUrl,
         [Parameter(Mandatory=$true)][string]$APIKey
     )
@@ -152,10 +176,13 @@ function Update-Calimari {
     # Creating an API header from API key
     $header = @{ "X-Octopus-ApiKey" = $APIKey }
 
+    $Uri = "https://" + $ip + ":10933/"
+
     # Use Octopus API to work out MachineName from MachineId
     $allMachines = ((Invoke-WebRequest ("$OctopusUrl/api/machines") -Headers $header -UseBasicParsing).content | ConvertFrom-Json).items
-    $thisMachine = $allMachines | Where-Object {$_.id -like $MachineId}
+    $thisMachine = $allMachines | Where-Object {$_.Uri -like $Uri}
     $MachineName = $thisMachine.Name
+    $MachineId = $thisMachine.Id
     
     # The body of the API call
     $body = @{ 
@@ -169,3 +196,5 @@ function Update-Calimari {
     
     Invoke-RestMethod $OctopusUrl/api/tasks -Method Post -Body $body -Headers $header | out-null
 }
+
+
