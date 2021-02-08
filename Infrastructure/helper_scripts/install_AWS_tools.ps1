@@ -45,6 +45,7 @@ foreach ($module in $requiredModules){
     $moduleAlreadyInstalled = Test-ModuleInstalled -moduleName $module
     if ($moduleAlreadyInstalled){
         Write-Output "      Module $module is already installed."
+        $installedModules += $module
     }
     else {
         $holdingProcess = Test-HoldFile -holdFileName $module
