@@ -80,12 +80,10 @@ ForEach ($InstanceID in $NewInstanceIds){
 ################################################################
 
 # Checking if it worked
-Write-Output "    Verifying that all instances have been/are being created:"
+Write-Output "    Started the following instances:"
 
 ForEach ($id in $NewInstanceIds){
-    $status = Get-EC2InstanceStatus -InstanceId $id
-    $instanceStateName = $status.InstanceState.Name
-    Write-Output "      Instance $id is in state $instanceStateName"
+    Write-Output "      $id"
 }
 
 Write-Output "    Waiting for instances to start. (This normally takes about 30 seconds.)"
@@ -100,7 +98,7 @@ While ($NewRunningInstances.count -lt $count){
     # Checking to see if they are running yet
     ForEach ($id in $pendingIds){
         $instanceStateName = (Get-EC2InstanceStatus -InstanceId $id).InstanceState.Name.Value
-        if ($instanceStateName -like "runnning"){
+        if ($instanceStateName -like "running"){
             $ip = (Get-EC2Instance -InstanceId $id).Instances.PublicIpAddress
             $NewRunningInstances.add($id,$ip)
             Write-Output "        Instance $id is running. IP address is: $ip"
