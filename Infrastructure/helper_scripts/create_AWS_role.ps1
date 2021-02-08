@@ -1,28 +1,39 @@
-param(
-    $roleName = "SecretsManager"
-)
 $ErrorActionPreference = "Stop"  
-
+$roleName = "SecretsManager"
 $policy = "$PSScriptRoot\IAM_SecretsManager_Policy.json"
-"Policy is saved at: $policy"
+Write-Output "    Access control policy is saved at: $policy"
 # Policy ARN is: arn:aws:iam::aws:policy/SecretsManagerReadWrite
 # More info: https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_identifiers.html
 
-$createRole = $false
-try {
-    Get-IamRole -RoleName $roleName | out-null
-    Write-Output "    Role $roleName already exists."
-}
-catch {
-    Write-Output "    Role $roleName does not exist."
-    $createRole = $true
+Function Test-RoleExists {
+    try {
+        Get-IamRole -RoleName "SecretsManager" | out-null
+        return $true
+    }
+    catch {
+        return $false
+    }
 }
 
-if ($createRole) {
-    Write-Output "    Creating role $roleName from policy saved at: $policy"
-    New-IAMRole -AssumeRolePolicyDocument (Get-Content -raw $policy) -RoleName $roleName -Tag @{ Key="RandomQuotes"; Value=""} | out-null
-    Register-IAMRolePolicy -RoleName $roleName -PolicyArn arn:aws:iam::aws:policy/SecretsManagerReadWrite
+# Create the role (if it does not already exist)
+if (Test-RoleExists) {
+    Write-Output "    Role $roleName already exists."
 } 
 else {
-    Write-Output "    Role $roleName already exists."
+    Write-Output "    Creating role $roleName with access control policy saved at: $policy"
+    try {
+        New-IAMRole -AssumeRolePolicyDocument (Get-Content -raw $policy) -RoleName $roleName -Tag @{ Key="RandomQuotes"; Value=""} | out-null
+    }
+    catch {
+        if (Test-RoleExists){
+            Write-Output "      Role $roleName has already been created by another process."
+        }
+        else {
+            Write-Error "Failed to create role: $roleName"
+        }
+    }
 }
+
+# This bit is re-runnable, so no need for a try catch etc
+Write-Output "    Registering $roleName with policy SecretsManagerReadWrite"
+Register-IAMRolePolicy -RoleName $roleName -PolicyArn arn:aws:iam::aws:policy/SecretsManagerReadWrite
