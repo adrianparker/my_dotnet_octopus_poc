@@ -213,6 +213,7 @@ if ($Wait -and ($totalRequired -gt 0)){
                 Write-Output $updateCalimariMsg
                 foreach ($machine in $newlyRegisteredMachines){
                     $id = $machine.id
+                    # Update-Calamari function is in ./helperfunctions.psm1
                     Update-Calimari -MachineID $id -OctopusUrl $octoUrl -APIKey $APIKey
                 }
             }
