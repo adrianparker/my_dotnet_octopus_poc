@@ -6,243 +6,198 @@ param(
     $octoUrl = "",
     $octoEnv = "",
     [Switch]$DeployTentacle,
-    [Switch]$Wait,
-    $timeout = 1200 # seconds
+    [Switch]$Wait
 )
 
 $ErrorActionPreference = "Stop"
 
+################################################################
+###                       PREPARATION                        ###
+################################################################
+
 # Importing helper functions
 Import-Module -Name "$PSScriptRoot\helper_functions.psm1" -Force
-
-# Reading VM_UserData
-$userDataFile = "VM_UserData.ps1"
-$userDataPath = "$PSScriptRoot\$userDataFile"
-$userData = Get-Content -Path $userDataPath -Raw
 
 # Getting the required instance ami for AWS region
 $image = Get-SSMLatestEC2Image -ImageName Windows_Server-2019-English-Full-Bas* -Path ami-windows-latest | Where-Object {$_.Name -like "Windows_Server-2019-English-Full-Base"} | Select-Object Value
 $ami = $image.Value
 Write-Output "    Windows_Server-2019-English-Full-Base image in this AWS region has ami: $ami"
 
-# Preparing startup script for VM
+# Reading VM_UserData
+$userDataPath = "$PSScriptRoot\VM_UserData.ps1"
+if (-not (Test-Path $userDataPath)){
+    Write-Error "No UserData (VM startup script) found at $userDataPath!"
+}
+$userData = Get-Content -Path $userDataPath -Raw
+
+# If deploying the tentacle, preparing VM_UserData code accordingly
 if ($DeployTentacle){
+    Write-Output "    Updating UserData to auto-deploy the tentacle."
     # If deploying tentacle, uncomment the deploy tentacle script
     $userData = $userData.replace("<# DEPLOY TENTACLE"," ")
     $userData = $userData.replace("DEPLOY TENTACLE #>"," ")
-    # And substitute the octopus URL and environment
+    # Provide the octopus URL, environment and role
     $userData = $userData.replace("__OCTOPUSURL__",$octoUrl)
     $userData = $userData.replace("__ENV__",$octoEnv)
     $userData = $userData.replace("__ROLE__",$role)
 }
 
-if (Test-Path $userDataPath){
-    Write-Output "    Reading UserData (VM startup script) from $userDataPath."
-}
-else {
-    Write-Error "No UserData (VM startup script) found at $userDataPath!"
-}
-# Base 64 encoding the setup script. More info here: 
+# Base 64 encoding VM_UserData. More info here: 
 # https://docs.aws.amazon.com/AWSEC2/latest/WindowsGuide/ec2-windows-user-data.html
 Write-Output "    Base 64 encoding UserData."
 $encodedUserData = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($userData))
 
-# Checking how many instances are already running
-Write-Output "    Checking how many instances are already running with tag $role and value $tagValue..."
-$acceptableStates = @("pending", "running")
-$PreExistingInstances = (Get-EC2Instance -Filter @{Name="tag:$role";Values=$tagValue}, @{Name="instance-state-name";Values=$acceptableStates}).Instances 
-$before = $PreExistingInstances.count
-Write-Output "      $before instances are already running." 
-$totalRequired = $count - $PreExistingInstances.count
-if ($totalRequired -lt 0){
-    $totalRequired = 0
-}
-Write-Output "      $totalRequired more instances required." 
-
-if ($totalRequired -gt 0){
-    Write-Output "    Launching $totalRequired instances of type $instanceType and ami $ami."
-    Write-Output "      Instances will each have tag $role with value $tagValue."
-
-    $NewInstance = New-EC2Instance -ImageId $ami -MinCount $totalRequired -MaxCount $totalRequired -InstanceType $instanceType -UserData $encodedUserData -KeyName RandomQuotes -SecurityGroup RandomQuotes -IamInstanceProfile_Name RandomQuotes
-
-    # Tagging all the instances
-    ForEach ($InstanceID  in ($NewInstance.Instances).InstanceId){
-        New-EC2Tag -Resources $( $InstanceID ) -Tags @(
-            @{ Key=$role; Value=$tagValue}
-        );
-    }
-}
-# Initializing potential error data
-$oops = $false
-$err = "There is a problem with the following instances: "
-
-# Checking if it worked
-Write-Output "    Verifying that all instances have been/are being created: "
-$instances = (Get-EC2Instance -Filter @{Name="tag:$role";Values=$tagValue}, @{Name="instance-state-name";Values=$acceptableStates}).Instances
-
-ForEach ($instance in $instances){
-    $id = $instance.InstanceId
-    $state = $instance.State.Name
-    Write-Output "      Instance $id is in state: $state"
-}
-
-if ($instances.count -ne $count){
-    $errmsg = "Expected to see $count instances, but actually see " + $instances.count + " instances."
-    Write-Warning "$errmsg"
-    $err = $err + ". Also, $errmsg"
-    $oops = $true
-}
-
-# Logging results
-if ($oops){
-    Write-Error $err
-} else {
-    $msg = "    " + $instances.count + " instances have been launched successfully."
-    Write-Output $msg
-}
-
-if ($Wait -and ($totalRequired -gt 0)){
-    $allRunning = $false
-    $allRegistered = $false
-    $runningWarningGiven = $false
-    $registeredWarningGiven = $false
-    $ipAddresses = @()
-
-    Write-Output "    Waiting for instances to start. (This normally takes about 30 seconds.)"
-    $stopwatch =  [system.diagnostics.stopwatch]::StartNew()
-    
-    While (-not $allRunning){
-        $time = [Math]::Floor([decimal]($stopwatch.Elapsed.TotalSeconds))
-        
-        if ($time -gt $timeout){
-            Write-Error "Timed out at $time seconds. Timeout currently set to $timeout seconds. There is a parameter on this script to adjust the default timeout."
-        }
-        
-        if (($time -gt 60) -and (-not $runningWarningGiven)){
-            Write-Warning "EC2 instances are taking an unusually long time to start."
-            $runningWarningGiven = $true
-        }
-        
-        $runningInstances = (Get-EC2Instance -Filter @{Name="tag:$role";Values=$tagValue}, @{Name="instance-state-name";Values="running"}).Instances
-        $NumRunning = $runningInstances.count
-        
-        if ($NumRunning -eq $count){
-            $allRunning = $true
-            Write-Output "      $time seconds: All instances are running!"
-            ForEach ($instance in $runningInstances){
-                $id = $instance.InstanceId
-                $ip = $instance.PublicIpAddress
-                $ipAddresses += $ip
-                Write-Output "        Instance $id is available at the public IP: $ip"
-            }
-            break
-        }
-        else {
-            Write-Output "      $time seconds: $NumRunning out of $count instances are running."
-        }
-
-        Start-Sleep -s 10
-    }
-    
-    # Authenticating to the API
+# Retrieving th Octopus API Key from Octopus variables (only required if deploying tentacles)
+if ($DeployTentacle){
     try {
         $APIKey = $OctopusParameters["OCTOPUS_APIKEY"]
-        $header = @{ "X-Octopus-ApiKey" = $APIKey }
     }
     catch {
-        Write-Warning 'Failed to read the Octopus API Key from $OctopusParameters["API_KEY"].'
+        Write-Error 'Failed to read the Octopus API Key from $OctopusParameters["OCTOPUS_APIKEY"].'
     }
+}
 
-    if ($deployTentacle){
-        $machineNames = @()
-        $machinesRunningIIS = @()
+################################################################
+###                    LANCHING INSTANCES                    ###
+################################################################
+
+Write-Output "    Launching $count instances of type $instanceType and ami $ami."
+Write-Output "      Instances will each have tag $role with value $tagValue."
+
+# Launching the instances
+$NewInstances = New-EC2Instance -ImageId $ami -MinCount $totalRequired -MaxCount $totalRequired -InstanceType $instanceType -UserData $encodedUserData -KeyName RandomQuotes -SecurityGroup RandomQuotes -IamInstanceProfile_Name RandomQuotes
+
+# Tagging all the instances
+$NewInstanceIds = $NewInstances.InstanceId
+ForEach ($InstanceID in $NewInstanceIds){
+    New-EC2Tag -Resources $( $InstanceID ) -Tags @(
+        @{ Key=$role; Value=$tagValue}
+    );
+}
+
+################################################################
+###             VERIFYING INSTANCES ARE RUNNING              ###
+################################################################
+
+# Checking if it worked
+Write-Output "    Verifying that all instances have been/are being created:"
+
+ForEach ($id in $NewInstanceIds){
+    $status = Get-EC2InstanceStatus -InstanceId $id
+    $instanceStateName = $status.InstanceState.Name
+    Write-Output "      Instance $id is in state $instanceStateName"
+}
+
+Write-Output "    Waiting for instances to start. (This normally takes about 30 seconds.)"
+$NewRunningInstances = @{}
+$timeout = 120 # seconds
+$stopwatch =  [system.diagnostics.stopwatch]::StartNew()
+
+While ($NewRunningInstances.count -lt $count){
+    # Getting the IDs of all pending instances
+    $pendingIds = $NewInstanceIds | Where-Object {$_ -notin $NewRunningInstances.Keys}   
     
-        Write-Output "    Waiting for tentacles to register with Octopus Server."
-        Write-Output "    (It normally takes 3-5 minutes to set up IIS and 7-10 minutes to register tentacles.)"
-        $stopwatch.Restart()
-
-        While (-not $allRegistered){
-            # Seeing how long we've been waiting so far
-            $time = [Math]::Floor([decimal]($stopwatch.Elapsed.TotalSeconds))
-            
-            # Checking the progress with IIS
-            forEach ($ip in $ipAddresses){
-                $iisRunning = $false
-                if ($ip -notIn $machinesRunningIIS){
-                    $iisRunning = Test-IIS -ip $ip
-                }
-                if ($iisRunning){
-                    $machinesRunningIIS += $ip
-                    Write-Output "        Default IIS site is now available at $ip"
-                    $newMachineOnline = $true
-                }
-            }
-
-            # Calling the API to find get machine data
-            $envID = $OctopusParameters["Octopus.Environment.Id"]
-            $environment = (Invoke-WebRequest "$octoUrl/api/environments/$envID" -Headers $header -UseBasicParsing).content | ConvertFrom-Json
-            $environmentMachines = $Environment.Links.Machines.Split("{")[0]
-            $machines = ((Invoke-WebRequest ($octoUrl + $environmentMachines) -Headers $header -UseBasicParsing).content | ConvertFrom-Json).items
-            $MachinesInRole = @()
-            $MachinesInRole += $machines | Where-Object {$role -in $_.Roles}
-            
-            # If we've found a new machine, logging the details
-            $NumRegistered = $MachinesInRole.Count
-            $newlyRegisteredMachines = @()
-            if ($NumRegistered -gt $machineNames.Count){
-                ForEach ($m in $MachinesInRole){
-                    if ($m.Name -notin $machineNames){
-                        $name = $m.Name
-                        $uri = $m.URI
-                        $id = $m.Id
-                        Write-Output "        Machine $name registered with URI $uri"
-                        $machine = @{ id = $id; name = $name}
-                        $newlyRegisteredMachines += $machine
-                        $machineNames += $name
-                    }
-                }
-            }
-
-            # If we've found any new machines, updating Calimari on each
-            if ($newlyRegisteredMachines.Count -gt 0){
-                $updateCalimariMsg = "          Updating Calimari on the following machines:"
-                foreach ($machine in $newlyRegisteredMachines){
-                    $name = $machine.name
-                    $updateCalimariMsg += " $name,"
-                }
-                Write-Output $updateCalimariMsg
-                foreach ($machine in $newlyRegisteredMachines){
-                    $id = $machine.id
-                    # Update-Calamari function is in ./helperfunctions.psm1
-                    Update-Calimari -MachineID $id -OctopusUrl $octoUrl -APIKey $APIKey
-                }
-            }
-        
-            # If we have all the machines we ordered, break out of the loop
-            if ($NumRegistered -ge $count){
-                $allRegistered = $true
-                Write-Output "      $time seconds: $NumRegistered out of $count instances are registered."
-                Write-Output "    SUCCESS! All $count machines are registered!"
-                break
-            }
-            else {
-                $IISCount = $machinesRunningIIS.Count
-                Write-Output "      $time seconds: $IISCount IIS installs and $NumRegistered tentacles registered out of $count."
-            }
-
-            # If we've been waiting an oddly long amount of time, raise a warning
-            if (($time -gt 600) -and (-not $registeredWarningGiven)){
-                Write-Warning "Machines are taking an unusually long time to register."
-                $registeredWarningGiven = $true
-            }
-
-            # If we've been waiting too long, time out
-            if ($time -gt $timeout){
-                Write-Error "Timed out at $time seconds. Timeout currently set to $timeout seconds. There is a parameter on this script to adjust the default timeout."
-            }
-            
-            # Seems we don't yet have all of our machines: Let's wait 30s and try again
-            Start-Sleep -s 30
+    # Checking to see if they are running yet
+    ForEach ($id in $pendingIds){
+        $instanceStateName = (Get-EC2InstanceStatus -InstanceId $id).InstanceState.Name.Value
+        if ($instanceStateName -like "runnning"){
+            $ip = (Get-EC2Instance -InstanceId $id).Instances.PublicIpAddress
+            $NewRunningInstances.add($id,$ip)
+            Write-Output "        Instance $id is running. IP address is: $ip"
         }
     }
+    
+    # Logging
+    $numRunning = $NewRunningInstances.count
+    if ($numRunning -eq $count){
+        Write-Output "    $time seconds: All instances are running!"
+        break
+    }
+    else {
+        Write-Output "      $time seconds: $numRunning out of $count instances are running."
+    }
+
+    # Short hold, then try again
+    $time = [Math]::Floor([decimal]($stopwatch.Elapsed.TotalSeconds))
+    if ($time -gt $timeout){
+        Write-Error "Timed out at $time seconds."
+    }
+    Start-Sleep -s 5
+}
+
+################################################################
+###         VERIFYING IIS AND TENTACLE REGISTRATION          ###
+################################################################
+
+$logMsg = "    Waiting for IIS to start on new instance(s). Normally 3-5 mins."
+if ($deployTentacle){
+    $logMsg = "    Waiting for IIS setup and Tentacle registration. Normally 7-10 mins."
+}
+Write-Output $logMsg
+
+$ipAddresses = $NewRunningInstances.Values
+$iisInstalls = @()
+$tentaclesRegistered = @()
+$timeout = 1200 # seconds
+$stopwatch.Restart()
+$complete = $false
+
+while (-not $complete){
+    # Check IIS
+    $pendingIisInstalls = $ipAddresses | Where-Object {$_ -notin $iisInstalls}
+    foreach ($ip in $pendingIisInstalls){
+        if (Test-IIS -ip $ip){
+            $iisInstalls += $ip
+            Write-Output "        IIS is running on $ip"
+        }
+    }
+    
+    # Check Tentacles (if $deployTentacle)
+    if ($deployTentacle){
+        $pendingTentacles = $ipAddresses | Where-Object {$_ -notin $tentaclesRegistered}
+        foreach ($ip in $pendingTentacles){
+            if (Test-Tentacle -ip $ip -OctopusUrl $octoUrl -APIKey $APIKey){
+                $tentaclesRegistered += $ip
+                Write-Output "        Tentacle is listening on $ip"
+                Write-Output "          Updating Calamari on $ip"
+                # Update-Calamari function is in ./helperfunctions.psm1
+                Update-Calimari -ip $ip -OctopusUrl $octoUrl -APIKey $APIKey
+            }
+        }
+    }
+
+    # If finished, break the loop
+    if ($deployTentacle){
+        if ($tentaclesRegistered.count -eq $count){
+            $complete = $true
+            Write-Output "SUCCESS! All instances are running."
+            break
+        }
+    }
+    else {
+        if ($iisInstalls.count -eq $count){
+            $complete = $true
+            Write-Output "SUCCESS! All instances are running."
+            break
+        }
+    }
+    
+    # Seems we don't yet have all of our machines: Let's wait 30s and try again
+    $time = [Math]::Floor([decimal]($stopwatch.Elapsed.TotalSeconds))
+    $numIis = $iisInstalls.count
+    $numTentacles = $tentaclesRegistered.count
+    if ($deployTentacle){
+        $msg = "      $time seconds: $numIis / $count instances have configured IIS"
+    }
+    else {
+        $msg = "      $time seconds: $numIis / $count IIS installs and $numTentacles / $count tentacles are ready."
+    }
+    Write-Output $msg
+    
+    # If we've been waiting too long, time out
+    if ($time -gt $timeout){
+        Write-Error "Timed out at $time seconds. Timeout currently set to $timeout seconds. There is a parameter on this script to adjust the default timeout."
+    }
+
+    Start-Sleep -s 15
 }
