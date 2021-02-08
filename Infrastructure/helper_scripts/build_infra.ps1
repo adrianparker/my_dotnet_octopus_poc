@@ -109,7 +109,7 @@ While ($NewRunningInstances.count -lt $count){
     # Logging
     $numRunning = $NewRunningInstances.count
     if ($numRunning -eq $count){
-        Write-Output "    $time seconds: All instances are running!"
+        Write-Output "      $time seconds: All instances are running!"
         break
     }
     else {
