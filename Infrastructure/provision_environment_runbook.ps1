@@ -122,6 +122,6 @@ Write-Output "*"
 
 # Creates the VMs
 Write-Output "Executing .\helper_scripts\build_infra.ps1..."
-Write-Output "  Parameters: -count $count -instanceType $instanceType -ami $ami -tagName $tagName -tagValue $tagValue -octoUrl $octoUrl -octoEnv $octoEnv -DeployTentacle:$DeployTentacle -Wait"
-& $PSScriptRoot\helper_scripts\build_infra.ps1 -count $count -instanceType $instanceType -ami $ami -tagName $tagName -tagValue $tagValue -octoUrl $octoUrl -octoEnv $octoEnv -DeployTentacle:$DeployTentacle -Wait
+Write-Output "  Parameters: -count $count -instanceType $instanceType -ami $ami -tagName $tagName -tagValue $tagValue -octoUrl $octoUrl -octoEnv $octoEnv -DeployTentacle:$DeployTentacle"
+& $PSScriptRoot\helper_scripts\build_infra.ps1 -count $count -instanceType $instanceType -ami $ami -tagName $tagName -tagValue $tagValue -octoUrl $octoUrl -octoEnv $octoEnv -DeployTentacle:$DeployTentacle
 Write-Output "*"

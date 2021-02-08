@@ -5,8 +5,7 @@ param(
     $tagValue = "Created manually",
     $octoUrl = "",
     $octoEnv = "",
-    [Switch]$DeployTentacle,
-    [Switch]$Wait
+    [Switch]$DeployTentacle
 )
 
 $ErrorActionPreference = "Stop"
