@@ -107,6 +107,7 @@ While ($NewRunningInstances.count -lt $count){
         }
     }
     
+    $time = [Math]::Floor([decimal]($stopwatch.Elapsed.TotalSeconds))
     # Logging
     $numRunning = $NewRunningInstances.count
     if ($numRunning -eq $count){
@@ -117,8 +118,7 @@ While ($NewRunningInstances.count -lt $count){
         Write-Output "      $time seconds: $numRunning out of $count instances are running."
     }
 
-    # Short hold, then try again
-    $time = [Math]::Floor([decimal]($stopwatch.Elapsed.TotalSeconds))
+    # Short hold, then try again    
     if ($time -gt $timeout){
         Write-Error "Timed out at $time seconds."
     }
