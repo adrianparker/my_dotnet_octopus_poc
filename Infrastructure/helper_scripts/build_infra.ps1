@@ -185,10 +185,10 @@ while (-not $complete){
     $numIis = $iisInstalls.count
     $numTentacles = $tentaclesRegistered.count
     if ($deployTentacle){
-        $msg = "      $time seconds: $numIis / $count IIS installs and $numTentacles / $count tentacles are ready."
+        $msg = "      $time seconds: $numIis / $count IIS installs and $numTentacles / $count tentacles online..."
     }
     else {
-        $msg = "      $time seconds: $numIis / $count instances have configured IIS"
+        $msg = "      $time seconds: $numIis / $count IIS installs..."
     }
     Write-Output $msg
     
