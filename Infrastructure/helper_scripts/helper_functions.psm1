@@ -124,3 +124,48 @@ Function Test-ModuleInstalled {
         return $false
     }
 }
+
+# Pings a given IPv4 addrerss to see if the defaul IIS site is running
+function Test-IIS {
+    param (
+        $ip
+    )
+    try { 
+        $content = Invoke-WebRequest -Uri $ip -TimeoutSec 1 -UseBasicParsing
+    }
+    catch {
+        return $false
+    }
+    if ($content.toString() -like "*iisstart.png*"){
+    return $true
+    }
+}
+
+# Updates calimari on a given machine
+function Update-Calimari {
+    param (
+        [Parameter(Mandatory=$true)][string]$MachineId,
+        [Parameter(Mandatory=$true)][string]$OctopusUrl,
+        [Parameter(Mandatory=$true)][string]$APIKey
+    )
+    
+    # Creating an API header from API key
+    $header = @{ "X-Octopus-ApiKey" = $APIKey }
+
+    # Use Octopus API to work out MachineName from MachineId
+    $allMachines = ((Invoke-WebRequest ("$OctopusUrl/api/machines") -Headers $header -UseBasicParsing).content | ConvertFrom-Json).items
+    $thisMachine = $allMachines | Where-Object {$_.id -like $MachineId}
+    $MachineName = $thisMachine.Name
+    
+    # The body of the API call
+    $body = @{ 
+        Name = "UpdateCalamari" 
+        Description = "Updating calamari on $MachineName" 
+        Arguments = @{ 
+            Timeout= "00:05:00" 
+            MachineIds = @($MachineId) #$MachineId could contain an array of machines too
+        } 
+    } | ConvertTo-Json
+    
+    Invoke-RestMethod $OctopusUrl/api/tasks -Method Post -Body $body -Headers $header | out-null
+}

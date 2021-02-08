@@ -12,6 +12,9 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+# Importing helper functions
+Import-Module -Name "$PSScriptRoot\helper_functions.psm1" -Force
+
 # Reading VM_UserData
 $userDataFile = "VM_UserData.ps1"
 $userDataPath = "$PSScriptRoot\$userDataFile"
@@ -150,39 +153,6 @@ if ($Wait -and ($totalRequired -gt 0)){
         Write-Warning 'Failed to read the Octopus API Key from $OctopusParameters["API_KEY"].'
     }
 
-    # Updating calimari on all tentacles
-    function Update-Calimari {
-        param (
-            [Parameter(Mandatory=$true)][string]$MachineId,
-            [Parameter(Mandatory=$true)][string]$MachineName
-        )
-        $body = @{ 
-            Name = "UpdateCalamari" 
-            Description = "Updating calamari on $MachineName" 
-            Arguments = @{ 
-                Timeout= "00:05:00" 
-                MachineIds = @($MachineId) #$MachineId could contain an array of machines too
-            } 
-        } | ConvertTo-Json
-        
-        Invoke-RestMethod $octoUrl/api/tasks -Method Post -Body $body -Headers $header | out-null
-    }
-
-    function Test-IIS {
-        param (
-            $ip
-        )
-        try { 
-            $content = Invoke-WebRequest -Uri $ip -TimeoutSec 1 -UseBasicParsing
-        }
-        catch {
-            return $false
-        }
-        if ($content.toString() -like "*iisstart.png*"){
-        return $true
-        }
-    }
-
     if ($deployTentacle){
         $machineNames = @()
         $machinesRunningIIS = @()
@@ -232,6 +202,7 @@ if ($Wait -and ($totalRequired -gt 0)){
                     }
                 }
             }
+
             # If we've found any new machines, updating Calimari on each
             if ($newlyRegisteredMachines.Count -gt 0){
                 $updateCalimariMsg = "          Updating Calimari on the following machines:"
@@ -242,8 +213,7 @@ if ($Wait -and ($totalRequired -gt 0)){
                 Write-Output $updateCalimariMsg
                 foreach ($machine in $newlyRegisteredMachines){
                     $id = $machine.id
-                    $name = $machine.name
-                    Update-Calimari -MachineID $id -MachineName $name
+                    Update-Calimari -MachineID $id -OctopusUrl $octoUrl -APIKey $APIKey
                 }
             }
         
