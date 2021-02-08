@@ -5,6 +5,7 @@
 catch {
     Write-Output "    SecretsManager role is not already added to profile RandomQuotes"
 }
+
 try {
     Remove-IAMInstanceProfile -InstanceProfileName RandomQuotes -Force
     Write-Output "    Removed existing profile RandomQuotes."
