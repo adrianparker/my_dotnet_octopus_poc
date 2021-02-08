@@ -65,7 +65,7 @@ Write-Output "    Launching $count instances of type $instanceType and ami $ami.
 Write-Output "      Instances will each have tag $role with value $tagValue."
 
 # Launching the instances
-$NewInstances = New-EC2Instance -ImageId $ami -MinCount $totalRequired -MaxCount $totalRequired -InstanceType $instanceType -UserData $encodedUserData -KeyName RandomQuotes -SecurityGroup RandomQuotes -IamInstanceProfile_Name RandomQuotes
+$NewInstances = New-EC2Instance -ImageId $ami -MinCount $count -MaxCount $count -InstanceType $instanceType -UserData $encodedUserData -KeyName RandomQuotes -SecurityGroup RandomQuotes -IamInstanceProfile_Name RandomQuotes
 
 # Tagging all the instances
 $NewInstanceIds = $NewInstances.InstanceId
