@@ -1,17 +1,10 @@
 $ErrorActionPreference = "Stop"
 
-# Verifying whether role exists
-$roleExists = $true
-try {
-    Get-IAMRole SecretsManager | out-null
-}
-catch {
-    Write-Output "      SecretsManager role does not exist."
-    $roleExists = $false
-}
+# Importing helper functions
+Import-Module -Name "$PSScriptRoot\helper_functions.psm1" -Force
 
 # If role exists, delete it
-if ($roleExists) {
+if (Test-SecretsManagerRoleExists) {
     Write-Output "      Removing policy from SecretsManager role."
     Get-IAMAttachedRolePolicyList -RoleName SecretsManager | Unregister-IAMRolePolicy -RoleName SecretsManager
     

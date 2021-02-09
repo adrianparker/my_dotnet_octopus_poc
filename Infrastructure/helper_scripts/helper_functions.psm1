@@ -197,4 +197,12 @@ function Update-Calamari {
     Invoke-RestMethod $OctopusUrl/api/tasks -Method Post -Body $body -Headers $header | out-null
 }
 
-
+Function Test-SecretsManagerRoleExists {
+    try {
+        Get-IAMRole SecretsManager | out-null
+        return $true
+    }
+    catch {
+        return $false
+    } 
+}
