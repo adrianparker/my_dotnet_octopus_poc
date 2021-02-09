@@ -4,8 +4,6 @@ param(
 
 $ErrorActionPreference = "Stop"  
 
-
-
 $createGroup = $false
 try {
     Get-EC2SecurityGroup -GroupName $securityGroupName | out-null
