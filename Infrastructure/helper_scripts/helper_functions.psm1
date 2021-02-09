@@ -81,7 +81,7 @@ Function Remove-HoldFile {
         Remove-Item $holdingFile | out-null
     }
     catch {
-        Write-Warning "Tried to delete $holdingFile but failed."
+        Write-Output "Tried to delete $holdingFile but failed."
     }
 }
 
