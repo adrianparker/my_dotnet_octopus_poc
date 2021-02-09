@@ -112,7 +112,7 @@ While ($NewRunningInstances.count -lt $count){
         break
     }
     else {
-        Write-Output "      $time seconds: $numRunning out of $count instances are running."
+        Write-Output "      $time seconds: $numRunning out of $count instances are running..."
     }
 
     # Short hold, then try again    
