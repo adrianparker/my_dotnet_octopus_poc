@@ -227,7 +227,7 @@ Function Test-RoleAddedToProfile {
 
 Function Test-RandomQuotesProfileExists {
     try {
-        $profile = (Get-IAMInstanceProfile -InstanceProfileName RandomQuotes)
+        Get-IAMInstanceProfile -InstanceProfileName RandomQuotes | out-null
         return $true
     }
     catch {
