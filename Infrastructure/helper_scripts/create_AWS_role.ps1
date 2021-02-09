@@ -5,18 +5,11 @@ Write-Output "    Access control policy is saved at: $policy"
 # Policy ARN is: arn:aws:iam::aws:policy/SecretsManagerReadWrite
 # More info: https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_identifiers.html
 
-Function Test-RoleExists {
-    try {
-        Get-IamRole -RoleName "SecretsManager" | out-null
-        return $true
-    }
-    catch {
-        return $false
-    }
-}
+# Importing helper functions
+Import-Module -Name "$PSScriptRoot\helper_functions.psm1" -Force
 
 # Create the role (if it does not already exist)
-if (Test-RoleExists) {
+if (Test-SecretsManagerRoleExists) {
     Write-Output "    Role $roleName already exists."
 } 
 else {
@@ -25,7 +18,7 @@ else {
         New-IAMRole -AssumeRolePolicyDocument (Get-Content -raw $policy) -RoleName $roleName -Tag @{ Key="RandomQuotes"; Value=""} | out-null
     }
     catch {
-        if (Test-RoleExists){
+        if (Test-SecretsManagerRoleExists){
             Write-Output "      Role $roleName has already been created by another process."
         }
         else {
