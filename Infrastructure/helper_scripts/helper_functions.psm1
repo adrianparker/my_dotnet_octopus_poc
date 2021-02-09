@@ -234,3 +234,39 @@ Function Test-RandomQuotesProfileExists {
         return $false
     }
 }
+
+Function Test-SecurityGroup {
+    param (
+        $groupName
+    )
+    try {
+        Get-EC2SecurityGroup -GroupName $groupName | out-null
+        return $true
+    }
+    catch {
+        return $false
+    }
+}
+
+Function Test-SecurityGroupPorts {
+    param (
+        $groupName,
+        $requiredPorts = @()
+    )
+    try {
+        $sg = Get-EC2SecurityGroup -GroupName $groupName
+        $openPorts = $sg.IpPermissions.FromPort
+        foreach ($port in $requiredPorts) {
+            if ($port -notin $openPorts){
+                # SecurityGroup exists, but is misconfigured
+                return $false
+            }
+        }
+        # SecurityGroup exists, and all the required ports are open
+        return $true
+    }
+    catch {
+        # SecurityGroup probably does not exist
+        return $false
+    }
+}
