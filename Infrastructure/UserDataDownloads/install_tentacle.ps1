@@ -12,15 +12,8 @@ param (
 # because we don't want to continue if the build fails
 $ErrorActionPreference = "Stop"
 
-# Function to securely retrieve secrets from AWS Secrets Manager
-function get-secret(){
-  param ($secret)
-  $secretValue = Get-SECSecretValue -SecretId $secret
-  # values are returned in format: {"key":"value"}
-  $splitValue = $secretValue.SecretString -Split '"'
-  $cleanedSecret = $splitValue[3]
-  return $cleanedSecret
-}
+# Importing helper functions
+Import-Module -Name "C:\Startup\scripts\userdata_helper_functions.psm1" -Force
 
 # Installing Octopus Tentacle
 # More about this script:
@@ -31,28 +24,6 @@ $apiKey = Get-Secret -secret "OCTOPUS_APIKEY"
 
 # More about this script:
 # https://gist.github.com/PaulStovell/7747107#file-provision-ps1
-
-function Download-File 
-{
-  param (
-    [string]$url,
-    [string]$saveAs
-  )
- 
-  Write-Output "    Downloading $url to $saveAs"
-  $downloader = new-object System.Net.WebClient
-  $downloader.DownloadFile($url, $saveAs)
-}
-
-# We're going to use Tentacle in Listening mode, so we need to tell Octopus what its IP address is. Since my Octopus server
-# is hosted somewhere else, I need to know the public-facing IP address. 
-function Get-MyPublicIPAddress
-{
-  Write-Host "    Getting public IP address" # Important: Use Write-Host here, not Write-output!
-  $downloader = new-object System.Net.WebClient
-  $ip = $downloader.DownloadString("http://ifconfig.me/ip")
-  return $ip
-}
 
 function Install-Tentacle 
 {
@@ -89,6 +60,8 @@ function Install-Tentacle
     throw "Installation failed when modifying firewall rules"
   }
   
+  # We're going to use Tentacle in Listening mode, so we need to tell Octopus what its IP address is. Since my Octopus server
+  # is hosted somewhere else, I need to know the public-facing IP address. 
   $ipAddress = Get-MyPublicIPAddress
   $ipAddress = $ipAddress.Trim()
 

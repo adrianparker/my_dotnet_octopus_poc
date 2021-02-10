@@ -39,6 +39,10 @@ Function Get-Script{
 }
 
 Write-Output "*"
+Write-Output "Downloading ./userdata_helper_functions.psm1"
+Get-Script -script "userdata_helper_functions.psm1"
+
+Write-Output "*"
 Get-Script -script "setup_users.ps1"
 Write-Output "Executing ./setup_users.ps1"
 ./setup_users.ps1

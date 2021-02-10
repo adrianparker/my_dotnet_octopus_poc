@@ -1,14 +1,5 @@
-function Download-File 
-{
-  param (
-    [string]$url,
-    [string]$saveAs
-  )
- 
-  Write-Host "  Downloading $url to $saveAs"
-  $downloader = new-object System.Net.WebClient
-  $downloader.DownloadFile($url, $saveAs)
-}
+# Importing helper functions
+Import-Module -Name "C:\Startup\scripts\userdata_helper_functions.psm1" -Force
 
 # Installing ASP.NET Core Runtime - Windows Hosting Bundle Installer so that we can deploy ,.NET Core websites
 $dotnetversion = "2.1.22"
