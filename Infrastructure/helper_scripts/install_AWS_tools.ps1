@@ -103,6 +103,12 @@ if ($installedModules.length -lt $requiredModules.length) {
     }
 }
 
+# If there are any hold files left, delete them
+# By now, any other process should have had plenty of time to install the module
+# If it failed, but it did not clean up the hold file, that's likely to cause problems
+
+Remove-AllHoldFiles
+
 ######################################################
 ###          CHECK ALL MODULES INSTALLED           ###
 ######################################################          
@@ -127,5 +133,4 @@ if ($diff){
 }
 else {
     Write-Output "    All modules installed successfully."
-    Remove-AllHoldFiles
 }
