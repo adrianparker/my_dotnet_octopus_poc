@@ -270,3 +270,17 @@ Function Test-SecurityGroupPorts {
         return $false
     }
 }
+
+function Test-KeyPair {
+    param (
+        $name
+    )
+
+    try {
+        Get-EC2KeyPair -KeyName $name | out-null
+        return $true
+    }
+    catch {
+        return $false
+    }
+}

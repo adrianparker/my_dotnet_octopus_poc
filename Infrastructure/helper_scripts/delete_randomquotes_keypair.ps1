@@ -4,20 +4,8 @@ param(
 
 $ErrorActionPreference = "Stop"  
 
-# Helper function to see if keypair exists
-function Test-KeyPair {
-    param (
-        $name
-    )
-
-    try {
-        Get-EC2KeyPair -KeyName $name | out-null
-        return $true
-    }
-    catch {
-        return $false
-    }
-}
+# Importing helper functions
+Import-Module -Name "$PSScriptRoot\helper_functions.psm1" -Force
 
 # Deleting keypair
 $keyPairExistsBefore = Test-KeyPair $keyPairName
