@@ -4,19 +4,8 @@ param(
 
 $ErrorActionPreference = "Stop"  
 
-# Helper function to see if security group exists
-function Test-SecurityGroup {
-    param (
-        $name
-    )
-    try {
-        Get-EC2SecurityGroup -GroupName $name | out-null
-        return $true
-    }
-    catch {
-        return $false
-    }
-}
+# Importing helper functions
+Import-Module -Name "$PSScriptRoot\helper_functions.psm1" -Force
 
 $attempt = 1
 $totalAttempts = 20
@@ -25,11 +14,11 @@ $waitTime = 5
 # Deleting security group
 while ($attempt -lt $totalAttempts){
     Write-Output "      Attempt $attempt / $totalAttempts to delete security group: $securityGroupName"
-    if (Test-SecurityGroup $securityGroupName) {
+    if (Test-SecurityGroup -groupName $securityGroupName) {
         
         try {
             Remove-EC2SecurityGroup -GroupName $securityGroupName -Force
-            if  (Test-SecurityGroup $securityGroupName) {
+            if  (Test-SecurityGroup -groupName $securityGroupName) {
                 Write-Error "Failed to remove security group $securityGroupNam."
             }
             else {
