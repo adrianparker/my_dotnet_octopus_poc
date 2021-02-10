@@ -118,9 +118,14 @@ foreach ($module in $requiredModules){
         $failedInstalls += $module
     }
 }
-Write-Output "    All modules installed successfully."
 
-if ($failedInstalls.length -gt 0){
+$diff = Compare-Object -ReferenceObject $requiredModules -DifferenceObject $successfulInstalls 
+
+if ($diff){
     $errorMsg = "FAILED TO INSTALL: $failedInstalls"
     Write-Error $ErrorMsg
+}
+else {
+    Write-Output "    All modules installed successfully."
+    Remove-AllHoldFiles
 }

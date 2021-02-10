@@ -85,6 +85,20 @@ Function Remove-HoldFile {
     }
 }
 
+Function Remove-AllHoldFiles {
+    param (
+        $holdFileDir = "C:/holdingFiles"
+    )
+
+    # Deleting all the holding file
+    try {
+        Remove-Item "$holdFileDir/*" -Force
+    }
+    catch {
+        Write-Warning "Tried to delete $holdFileDir/*, but failed."
+    }
+}
+
 Function Install-ModuleWithHoldFile {
     param (
         [Parameter(Mandatory=$true)]$moduleName
