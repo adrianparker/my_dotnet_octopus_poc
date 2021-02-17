@@ -163,12 +163,7 @@ function Test-Tentacle {
         [Parameter(Mandatory=$true)][string]$APIKey        
     )
     # Authenticating to the API
-    try {
-        $header = @{ "X-Octopus-ApiKey" = $APIKey }
-    }
-    catch {
-        Write-Warning 'Failed to read the Octopus API Key from $OctopusParameters["API_KEY"].'
-    }
+    $header = @{ "X-Octopus-ApiKey" = $APIKey }
     $URL = "https://" + $ip + ":10933/"
     $allMachines = ((Invoke-WebRequest ("$OctopusUrl/api/machines") -Headers $header -UseBasicParsing).content | ConvertFrom-Json).items
     if ($allMachines.Uri -contains $URL){
