@@ -1,7 +1,7 @@
 param(
     [Parameter(Mandatory)][ValidateNotNullOrEmpty()]$awsAccessKey,
     [Parameter(Mandatory)][ValidateNotNullOrEmpty()]$awsSecretKey,
-    $defaulAwsRegion = "eu-west-1" # Other carbon neutral regions are listed here: https://aws.amazon.com/about-aws/sustainability/
+    $defaulAwsRegion = "ap-southeast-2" # Other carbon neutral regions are listed here: https://aws.amazon.com/about-aws/sustainability/
 )
 
 $ErrorActionPreference = "Stop"  
