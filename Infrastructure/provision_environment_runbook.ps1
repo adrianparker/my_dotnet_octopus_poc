@@ -1,7 +1,7 @@
 param(
     $awsAccessKey = "",
     $awsSecretKey = "",
-    $defaulAwsRegion = "eu-west-1", # Other carbon neutral regions are listed here: https://aws.amazon.com/about-aws/sustainability/
+    $defaulAwsRegion = "ap-southeast-2", # Other carbon neutral regions are listed here: https://aws.amazon.com/about-aws/sustainability/
     $securityGroupName = "RandomQuotes",
     $count = 1,
     $instanceType = "t2.micro", # 1 vCPU, 1GiB Mem, free tier elligible: https://aws.amazon.com/ec2/instance-types/
